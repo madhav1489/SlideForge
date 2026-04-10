@@ -15,7 +15,7 @@
 ## 🎥 Demo Video
 
 📽️ Watch how it works:
-👉 [Add your demo video link here]
+👉 
 (You can upload on YouTube / Loom and paste link)
 
 ---
