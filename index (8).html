@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SlideForge — RAG Presentation Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:ital,wght@0,300;0,600;0,700;0,900;1,300;1,700&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{--bg:#050508;--surface:#0c0c14;--s2:#13131f;--border:#1c1c2e;--accent:#e8ff47;--hot:#ff3c6e;--ice:#47d4ff;--text:#f0f0f8;--muted:#5a5a78;--font-d:'Bebas Neue',sans-serif;--font-c:'Barlow Condensed',sans-serif;--font-b:'Barlow',sans-serif;--font-m:'DM Mono',monospace}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);overflow-x:hidden;cursor:none}
+#cur{position:fixed;z-index:9999;width:10px;height:10px;background:var(--accent);border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);mix-blend-mode:difference;transition:width .2s,height .2s}
+#cur-ring{position:fixed;z-index:9998;width:36px;height:36px;border:1.5px solid var(--accent);border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);transition:width .35s cubic-bezier(.23,1,.32,1),height .35s cubic-bezier(.23,1,.32,1);opacity:.6}
+#bg-canvas{position:fixed;inset:0;z-index:0;opacity:.7}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:1.4rem 3rem;backdrop-filter:blur(24px);background:rgba(5,5,8,.7);border-bottom:1px solid var(--border)}
+.nav-logo{font-family:var(--font-d);font-size:1.6rem;letter-spacing:3px;color:var(--accent);text-decoration:none}
+.nav-right{display:flex;gap:.75rem;align-items:center}
+.nav-btn{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--border);border-radius:50%;color:var(--muted);text-decoration:none;transition:border-color .25s,color .25s,transform .25s;background:rgba(255,255,255,.03)}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);transform:scale(1.1)}
+.nav-btn svg{width:16px;height:16px;fill:currentColor}
+.status-chip{display:flex;align-items:center;gap:7px;padding:.35rem .9rem;border:1px solid var(--border);border-radius:100px;font-family:var(--font-m);font-size:.72rem;color:var(--muted);background:rgba(255,255,255,.02);transition:all .3s}
+.status-chip.live{color:var(--accent);border-color:rgba(232,255,71,.25)}
+.status-chip.dead{color:var(--hot);border-color:rgba(255,60,110,.25)}
+.s-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:10rem 3rem 4rem;max-width:1200px;margin:0 auto}
+.hero-eyebrow{font-family:var(--font-m);font-size:.75rem;letter-spacing:.25em;color:var(--accent);text-transform:uppercase;margin-bottom:1.5rem;opacity:0}
+.hero-title{font-family:var(--font-d);font-size:clamp(5rem,14vw,14rem);line-height:.9;letter-spacing:2px;margin-bottom:.5rem}
+.hero-title .hl{color:var(--accent);display:block}
+.hero-title .line{display:block;overflow:hidden}
+.hero-title .word{display:inline-block;transform:translateY(110%)}
+.hero-sub{font-family:var(--font-c);font-size:clamp(1.1rem,2.5vw,1.8rem);font-weight:300;font-style:italic;color:var(--muted);margin-top:1.5rem;opacity:0;max-width:600px;line-height:1.4}
+.hero-cta{margin-top:2.5rem;opacity:0}
+.hero-cta a{display:inline-flex;align-items:center;gap:10px;padding:.9rem 2rem;background:var(--accent);color:var(--bg);font-family:var(--font-d);font-size:1.2rem;letter-spacing:2px;text-decoration:none;border-radius:8px;transition:transform .2s,box-shadow .2s}
+.hero-cta a:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(232,255,71,.3)}
+.scroll-hint{position:absolute;bottom:3rem;left:3rem;display:flex;align-items:center;gap:12px;font-family:var(--font-m);font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);opacity:0}
+.scroll-line{width:60px;height:1px;background:var(--muted);animation:sLine 2s ease-in-out infinite}
+@keyframes sLine{0%{transform:scaleX(0);transform-origin:left}50%{transform:scaleX(1);transform-origin:left}51%{transform-origin:right}100%{transform:scaleX(0);transform-origin:right}}
+.section-wrap{position:relative;z-index:1;padding:6rem 3rem;max-width:1200px;margin:0 auto}
+.section-label{font-family:var(--font-m);font-size:.7rem;letter-spacing:.25em;text-transform:uppercase;color:var(--hot);margin-bottom:1rem}
+.section-title{font-family:var(--font-d);font-size:clamp(3rem,8vw,7rem);letter-spacing:1px;line-height:.95;margin-bottom:3rem}
+.section-title em{font-style:normal;color:var(--accent)}
+.forge-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.forge-panel{background:var(--surface);padding:2.5rem;position:relative}
+.forge-panel:last-child{background:var(--s2)}
+.fp-label{font-family:var(--font-m);font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:1.2rem}
+.topic-wrap{position:relative;margin-bottom:1.5rem}
+.topic-input{width:100%;background:transparent;border:none;border-bottom:2px solid var(--border);outline:none;color:var(--text);font-family:var(--font-c);font-size:2.2rem;font-weight:600;padding:.5rem 0 .8rem;transition:border-color .3s;caret-color:var(--accent)}
+.topic-input::placeholder{color:var(--border)}
+.topic-input:focus{border-color:var(--accent)}
+.topic-underline{position:absolute;bottom:0;left:0;height:2px;width:0;background:var(--accent);transition:width .4s cubic-bezier(.23,1,.32,1)}
+.topic-input:focus~.topic-underline{width:100%}
+.topic-hint{font-size:.8rem;color:var(--muted);font-family:var(--font-m);min-height:1.2rem;transition:opacity .3s;margin-bottom:2rem}
+.source-toggle{display:flex;gap:8px;margin-bottom:1.8rem}
+.src-btn{flex:1;padding:.6rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font-m);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;cursor:none;transition:all .25s;text-align:center}
+.src-btn.active{background:rgba(71,212,255,.08);border-color:var(--ice);color:var(--ice)}
+.src-btn:hover:not(.active){border-color:var(--muted);color:var(--text)}
+.gen-btn{width:100%;padding:1.2rem 2rem;background:var(--accent);border:none;border-radius:10px;color:var(--bg);font-family:var(--font-d);font-size:1.8rem;letter-spacing:3px;cursor:none;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.gen-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);transform:translateX(-100%);transition:transform .6s}
+.gen-btn:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(232,255,71,.3)}
+.gen-btn:hover::after{transform:translateX(100%)}
+.gen-btn:disabled{background:var(--border);color:var(--muted);transform:none;box-shadow:none}
+.gen-btn-inner{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:12px}
+.progress-wrap{margin-top:1.5rem;height:3px;background:var(--border);border-radius:100px;overflow:hidden;display:none}
+.progress-wrap.active{display:block}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--hot),var(--ice));background-size:200%;width:0%;border-radius:100px;animation:shimmer 1.5s linear infinite;transition:width .5s}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.progress-msg{margin-top:.8rem;font-family:var(--font-m);font-size:.72rem;color:var(--accent);letter-spacing:.1em;min-height:1rem}
+.err-banner{display:none;margin-top:1rem;padding:1rem 1.2rem;background:rgba(255,60,110,.08);border:1px solid rgba(255,60,110,.3);border-radius:8px;color:var(--hot);font-size:.82rem;line-height:1.5;font-family:var(--font-m)}
+.err-banner.show{display:block}
+.slide-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.5rem}
+.slide-btn{aspect-ratio:1;display:grid;place-items:center;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:var(--font-d);font-size:1.6rem;letter-spacing:1px;cursor:none;transition:all .25s cubic-bezier(.23,1,.32,1);position:relative;overflow:hidden}
+.slide-btn::before{content:'';position:absolute;inset:0;background:var(--accent);transform:scaleY(0);transform-origin:bottom;transition:transform .3s cubic-bezier(.23,1,.32,1)}
+.slide-btn:hover{border-color:var(--accent);color:var(--bg)}
+.slide-btn:hover::before,.slide-btn.active::before{transform:scaleY(1)}
+.slide-btn span{position:relative;z-index:1}
+.slide-btn.active{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.pipe-row{display:flex;justify-content:space-between;font-size:.78rem;padding:.4rem 0;border-bottom:1px solid var(--border)}
+.pipe-row:last-child{border-bottom:none}
+.pipe-key{color:var(--muted);font-family:var(--font-m)}
+.output-section{position:relative;z-index:1;padding:0 3rem 4rem;max-width:1200px;margin:0 auto;display:none}
+.output-section.show{display:block}
+.output-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:1rem}
+.output-topic{font-family:var(--font-d);font-size:clamp(2.5rem,6vw,5rem);letter-spacing:1px;line-height:1}
+.output-topic em{font-style:normal;color:var(--accent)}
+.output-meta{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.meta-pill{padding:.3rem .8rem;border:1px solid var(--border);border-radius:100px;font-family:var(--font-m);font-size:.7rem;color:var(--muted)}
+.meta-pill.type-academic{border-color:rgba(71,212,255,.3);color:var(--ice)}
+.meta-pill.type-pop{border-color:rgba(255,60,110,.3);color:var(--hot)}
+.slides-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.slide-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.8rem;position:relative;overflow:hidden;opacity:0;transform:translateY(20px);transition:border-color .3s,transform .3s}
+.slide-card:hover{border-color:var(--accent);transform:translateY(-3px)}
+.slide-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);opacity:0;transition:opacity .3s}
+.slide-card:hover::before{opacity:1}
+.slide-card.title-card{grid-column:1/-1;background:linear-gradient(135deg,rgba(232,255,71,.06),rgba(255,60,110,.06));border-color:rgba(232,255,71,.2);text-align:center;padding:3rem}
+.card-num{font-family:var(--font-m);font-size:.65rem;letter-spacing:.2em;color:var(--muted);margin-bottom:1rem;text-transform:uppercase}
+.card-title{font-family:var(--font-c);font-size:1.3rem;font-weight:700;letter-spacing:.02em;margin-bottom:1.2rem;color:var(--text)}
+.title-card .card-title{font-family:var(--font-d);font-size:clamp(2rem,5vw,3.5rem);letter-spacing:2px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.75rem}
+.card-sub{font-size:.85rem;color:var(--muted);font-style:italic}
+.card-bullets{list-style:none}
+.card-bullet{display:flex;align-items:flex-start;gap:10px;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.88rem;color:#c8c8d8;line-height:1.5;font-weight:300}
+.card-bullet:last-child{border-bottom:none}
+.bullet-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:.55rem}
+/* DOWNLOAD */
+.download-bar{display:flex;gap:12px;margin-top:2.5rem;flex-wrap:wrap;opacity:0}
+.dl-btn{display:inline-flex;align-items:center;gap:10px;padding:.85rem 1.8rem;border-radius:8px;font-family:var(--font-d);font-size:1.2rem;letter-spacing:2px;cursor:none;border:none;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s,opacity .2s}
+.dl-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-100%);transition:transform .5s}
+.dl-btn:hover::after{transform:translateX(100%)}
+.dl-btn:hover{transform:translateY(-2px)}
+.dl-btn:disabled{opacity:.35;transform:none}
+.dl-btn.pptx{background:var(--hot);color:#fff;box-shadow:0 4px 20px rgba(255,60,110,.2)}
+.dl-btn.pptx:not(:disabled):hover{box-shadow:0 8px 32px rgba(255,60,110,.45)}
+.dl-btn.pdf{background:var(--ice);color:var(--bg);box-shadow:0 4px 20px rgba(71,212,255,.2)}
+.dl-btn.pdf:not(:disabled):hover{box-shadow:0 8px 32px rgba(71,212,255,.45)}
+.dl-btn svg{width:18px;height:18px;flex-shrink:0}
+/* HOW IT WORKS */
+.how-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:3rem}
+.how-step{background:var(--surface);padding:2rem 1.5rem;position:relative;overflow:hidden}
+.how-step::after{content:attr(data-n);position:absolute;bottom:-1rem;right:-.5rem;font-family:var(--font-d);font-size:8rem;color:rgba(255,255,255,.03);line-height:1;pointer-events:none}
+.step-n{font-family:var(--font-m);font-size:.65rem;letter-spacing:.2em;color:var(--accent);margin-bottom:1rem}
+.step-icon{font-size:1.8rem;margin-bottom:1rem}
+.step-t{font-family:var(--font-c);font-size:1.1rem;font-weight:700;letter-spacing:.05em;margin-bottom:.5rem}
+.step-d{font-size:.8rem;color:var(--muted);line-height:1.6;font-weight:300}
+/* ABOUT */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:4rem}
+.about-panel{background:var(--surface);padding:3rem;position:relative;overflow:hidden}
+.about-panel:last-child{background:var(--s2)}
+.about-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.about-panel:first-child::before{background:linear-gradient(90deg,var(--accent),transparent)}
+.about-panel:last-child::before{background:linear-gradient(90deg,var(--hot),transparent)}
+.about-tag{font-family:var(--font-m);font-size:.65rem;letter-spacing:.25em;text-transform:uppercase;color:var(--accent);margin-bottom:1rem}
+.about-name{font-family:var(--font-d);font-size:3rem;letter-spacing:2px;line-height:1;margin-bottom:.5rem}
+.about-role{font-family:var(--font-c);font-size:1.1rem;font-weight:300;font-style:italic;color:var(--muted);margin-bottom:1.5rem}
+.about-bio{font-size:.88rem;color:#c8c8d8;line-height:1.8;font-weight:300;margin-bottom:2rem}
+.about-links{display:flex;gap:10px;flex-wrap:wrap}
+.about-link{display:inline-flex;align-items:center;gap:8px;padding:.5rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--muted);text-decoration:none;font-family:var(--font-m);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;transition:all .25s}
+.about-link:hover{border-color:var(--accent);color:var(--accent)}
+.about-link svg{width:14px;height:14px;fill:currentColor}
+.project-tag{font-family:var(--font-m);font-size:.65rem;letter-spacing:.25em;text-transform:uppercase;color:var(--hot);margin-bottom:1rem}
+.project-name{font-family:var(--font-d);font-size:2.5rem;letter-spacing:2px;line-height:1;margin-bottom:.5rem}
+.project-tagline{font-family:var(--font-c);font-size:1.1rem;font-weight:300;font-style:italic;color:var(--muted);margin-bottom:1.5rem}
+.project-desc{font-size:.88rem;color:#c8c8d8;line-height:1.8;font-weight:300;margin-bottom:2rem}
+.tech-chips{display:flex;flex-wrap:wrap;gap:8px}
+.tech-chip{padding:.3rem .8rem;background:rgba(232,255,71,.06);border:1px solid rgba(232,255,71,.15);border-radius:100px;font-family:var(--font-m);font-size:.68rem;color:var(--accent);letter-spacing:.08em}
+/* ROADMAP */
+.roadmap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.roadmap-item{background:var(--surface);padding:2rem;position:relative}
+.roadmap-item.done{background:rgba(232,255,71,.02)}
+.roadmap-item::after{position:absolute;top:1.2rem;right:1.2rem;font-family:var(--font-m);font-size:.75rem}
+.roadmap-item.done::after{content:'✓';color:var(--accent)}
+.roadmap-item.soon::after{content:'→';color:var(--hot)}
+.roadmap-item.future::after{content:'◦';color:var(--muted)}
+.roadmap-badge{font-family:var(--font-m);font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;padding:.2rem .6rem;border-radius:100px;margin-bottom:1rem;display:inline-block}
+.done .roadmap-badge{background:rgba(232,255,71,.1);color:var(--accent);border:1px solid rgba(232,255,71,.2)}
+.soon .roadmap-badge{background:rgba(255,60,110,.08);color:var(--hot);border:1px solid rgba(255,60,110,.2)}
+.future .roadmap-badge{background:rgba(90,90,120,.1);color:var(--muted);border:1px solid var(--border)}
+.roadmap-title{font-family:var(--font-c);font-size:1rem;font-weight:700;margin-bottom:.4rem;padding-right:1.5rem}
+.roadmap-desc{font-size:.78rem;color:var(--muted);line-height:1.6;font-weight:300}
+/* FOOTER */
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:2.5rem 3rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;max-width:1200px;margin:0 auto}
+.footer-logo{font-family:var(--font-d);font-size:1.4rem;letter-spacing:3px;color:var(--accent)}
+.footer-copy{font-size:.78rem;color:var(--muted);font-family:var(--font-m)}
+.footer-links{display:flex;gap:.75rem}
+.reveal{opacity:0;transform:translateY(30px)}
+.reveal.visible{opacity:1;transform:translateY(0);transition:opacity .7s,transform .7s}
+@media(max-width:768px){nav{padding:1rem 1.5rem}.hero,.section-wrap,.output-section{padding-left:1.5rem;padding-right:1.5rem}.forge-grid,.about-grid{grid-template-columns:1fr}.how-grid{grid-template-columns:1fr 1fr}.roadmap-grid{grid-template-columns:1fr}.slides-grid{grid-column:1fr}footer{padding:2rem 1.5rem}}
+@media(max-width:480px){.how-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cur-ring"></div>
+<canvas id="bg-canvas"></canvas>
+
+<nav>
+  <a class="nav-logo" href="#">SLIDEFORGE</a>
+  <div class="nav-right">
+    <div class="status-chip" id="statusChip"><span class="s-dot"></span><span id="statusText">CHECKING…</span></div>
+    <a class="nav-btn" href="https://www.linkedin.com/in/madhav-sharma-274709281/" target="_blank" title="LinkedIn">
+      <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    </a>
+    <a class="nav-btn" href="https://github.com/madhav1489" target="_blank" title="GitHub">
+      <svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+    </a>
+  </div>
+</nav>
+
+<section class="hero">
+  <p class="hero-eyebrow">RAG · Wikipedia · arXiv · ChromaDB · FastAPI</p>
+  <h1 class="hero-title">
+    <span class="line"><span class="word">SLIDE</span></span>
+    <span class="line hl"><span class="word">FORGE</span></span>
+  </h1>
+  <p class="hero-sub">Drop a topic. Get a presentation.<br/>Powered by retrieval-augmented generation.</p>
+  <div class="hero-cta"><a href="#forge">START FORGING<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg></a></div>
+  <div class="scroll-hint"><div class="scroll-line"></div>scroll</div>
+</section>
+
+<section class="section-wrap" id="forge">
+  <p class="section-label reveal">// input</p>
+  <h2 class="section-title reveal">FORGE YOUR<br/><em>DECK</em></h2>
+  <div class="forge-grid reveal">
+    <div class="forge-panel">
+      <p class="fp-label">01 — Topic</p>
+      <div class="topic-wrap">
+        <input class="topic-input" type="text" id="topicInput" placeholder="Neural Networks…" autocomplete="off" spellcheck="false"/>
+        <div class="topic-underline"></div>
+      </div>
+      <div class="topic-hint" id="topicHint">Type any subject — academic or pop culture</div>
+      <p class="fp-label">02 — Data Source</p>
+      <div class="source-toggle">
+        <button class="src-btn active" data-src="wikipedia" onclick="setSrc(this)">Wikipedia</button>
+        <button class="src-btn" data-src="arxiv" onclick="setSrc(this)">arXiv</button>
+        <button class="src-btn" data-src="both" onclick="setSrc(this)">Both</button>
+      </div>
+      <button class="gen-btn" id="genBtn" onclick="generate()">
+        <span class="gen-btn-inner"><span id="genTxt">FORGE SLIDES</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+      </button>
+      <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="progress-msg" id="progressMsg"></div>
+      <div class="err-banner" id="errBanner"></div>
+    </div>
+    <div class="forge-panel">
+      <p class="fp-label">03 — Number of Slides</p>
+      <div class="slide-btns" id="slideBtns"></div>
+      <p class="fp-label">04 — Bullets per Slide</p>
+      <div class="slide-btns" id="bulletBtns"></div>
+      <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border)">
+        <p class="fp-label">Pipeline Info</p>
+        <div style="margin-top:.8rem">
+          <div class="pipe-row"><span class="pipe-key">Embedder</span><span>all-MiniLM-L6-v2</span></div>
+          <div class="pipe-row"><span class="pipe-key">Vector Store</span><span>ChromaDB</span></div>
+          <div class="pipe-row"><span class="pipe-key">Retrieval</span><span>top-k = 20</span></div>
+          <div class="pipe-row"><span class="pipe-key">Scoring</span><span>keyword + topic</span></div>
+          <div class="pipe-row"><span class="pipe-key">API</span><span>FastAPI · localhost:8000</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="output-section" id="outputSection">
+  <div class="output-header">
+    <div class="output-topic" id="outputTopic">TOPIC</div>
+    <div class="output-meta">
+      <span class="meta-pill" id="typePill">—</span>
+      <span class="meta-pill" id="slidesPill">— slides</span>
+    </div>
+  </div>
+  <div class="slides-grid" id="slidesGrid"></div>
+
+</section>
+
+<section class="section-wrap" style="border-top:1px solid var(--border)">
+  <p class="section-label reveal">// architecture</p>
+  <h2 class="section-title reveal">HOW IT<br/><em>WORKS</em></h2>
+  <div class="how-grid reveal">
+    <div class="how-step" data-n="01"><p class="step-n">01 — FETCH</p><div class="step-icon">🌐</div><p class="step-t">Document Retrieval</p><p class="step-d">Pulls 3 docs each from Wikipedia and arXiv using LangChain loaders.</p></div>
+    <div class="how-step" data-n="02"><p class="step-n">02 — CHUNK</p><div class="step-icon">✂️</div><p class="step-t">Text Splitting</p><p class="step-d">Splits into 1000-char chunks with 200-char overlap via RecursiveCharacterTextSplitter.</p></div>
+    <div class="how-step" data-n="03"><p class="step-n">03 — EMBED</p><div class="step-icon">🧠</div><p class="step-t">Vector Encoding</p><p class="step-d">Encodes chunks into 384-dim vectors via all-MiniLM-L6-v2, stored in ChromaDB.</p></div>
+    <div class="how-step" data-n="04"><p class="step-n">04 — FORGE</p><div class="step-icon">⚡</div><p class="step-t">RAG Assembly</p><p class="step-d">Each heading independently queries the vector store, scores and deduplicates globally.</p></div>
+  </div>
+</section>
+
+<section class="section-wrap" id="about" style="border-top:1px solid var(--border)">
+  <p class="section-label reveal">// about</p>
+  <h2 class="section-title reveal">THE BUILDER<br/><em>&amp; THE BUILD</em></h2>
+  <div class="about-grid reveal">
+    <div class="about-panel">
+      <div class="about-tag">// developer</div>
+      <div class="about-name">MADHAV<br/>SHARMA</div>
+      <div class="about-role">AI / ML Engineer · RAG Specialist</div>
+      <div class="about-bio">Passionate about building intelligent systems that turn raw knowledge into structured, useful output. SlideForge combines my interest in NLP, vector search, and clean UI design — turning retrieval-augmented generation from a research concept into a practical tool anyone can use. Always exploring the intersection of language models, embeddings, and real-world applications.</div>
+      <div class="about-links">
+        <a class="about-link" href="https://www.linkedin.com/in/madhav-sharma-274709281/" target="_blank"><svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>LinkedIn</a>
+        <a class="about-link" href="https://github.com/madhav1489" target="_blank"><svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>GitHub</a>
+      </div>
+    </div>
+    <div class="about-panel">
+      <div class="project-tag">// project</div>
+      <div class="project-name">SLIDE<br/>FORGE</div>
+      <div class="project-tagline">Drop a topic. Get a deck. Powered by RAG.</div>
+      <div class="project-desc">SlideForge is a full-stack RAG pipeline that automatically creates structured presentations from any topic. It fetches real documents from Wikipedia and arXiv, chunks and embeds them into a ChromaDB vector store, then retrieves and scores content per slide heading to produce factual, deduplicated bullet points — all served via FastAPI with PPTX and PDF export.</div>
+      <div class="tech-chips">
+        <span class="tech-chip">LangChain</span><span class="tech-chip">ChromaDB</span><span class="tech-chip">SentenceTransformers</span><span class="tech-chip">FastAPI</span><span class="tech-chip">Wikipedia API</span><span class="tech-chip">arXiv API</span><span class="tech-chip">python-pptx</span><span class="tech-chip">reportlab</span><span class="tech-chip">Three.js</span><span class="tech-chip">GSAP</span>
+      </div>
+    </div>
+  </div>
+  <p class="section-label reveal" style="margin-top:1rem">// roadmap</p>
+  <h2 class="section-title reveal" style="margin-bottom:2rem">WHAT'S<br/><em>NEXT</em></h2>
+  <div class="roadmap-grid reveal">
+    <div class="roadmap-item done"><span class="roadmap-badge">Shipped</span><div class="roadmap-title">RAG Pipeline</div><div class="roadmap-desc">Full Wikipedia + arXiv retrieval with ChromaDB vector store and per-slide scoring.</div></div>
+    <div class="roadmap-item done"><span class="roadmap-badge">Shipped</span><div class="roadmap-title">Smart Topic Detection</div><div class="roadmap-desc">Auto-detects academic vs pop culture and switches slide templates accordingly.</div></div>
+    <div class="roadmap-item done"><span class="roadmap-badge">Shipped</span><div class="roadmap-title">Export PPTX &amp; PDF</div><div class="roadmap-desc">Download your generated deck as a PowerPoint file or a print-ready PDF instantly.</div></div>
+    <div class="roadmap-item soon"><span class="roadmap-badge">Coming Soon</span><div class="roadmap-title">Custom Slide Themes</div><div class="roadmap-desc">Choose from multiple themes — dark, light, corporate, minimal — before exporting.</div></div>
+    <div class="roadmap-item soon"><span class="roadmap-badge">Coming Soon</span><div class="roadmap-title">AI Image Generation</div><div class="roadmap-desc">Auto-generate relevant images for each slide using AI image models.</div></div>
+    <div class="roadmap-item future"><span class="roadmap-badge">Planned</span><div class="roadmap-title">Multi-Language Support</div><div class="roadmap-desc">Generate presentations in Hindi, Spanish, French and more with translated content.</div></div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">SLIDEFORGE</div>
+  <div class="footer-copy">Built by Madhav Sharma · RAG · Wikipedia · arXiv · ChromaDB · FastAPI</div>
+  <div class="footer-links">
+    <a class="nav-btn" href="https://www.linkedin.com/in/madhav-sharma-274709281/" target="_blank"><svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+    <a class="nav-btn" href="https://github.com/madhav1489" target="_blank"><svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+  </div>
+</footer>
+
+<script>
+const API='http://127.0.0.1:8000';
+let lastGeneratedData=null;
+
+/* THREE.JS — ENHANCED STARS */
+(function(){
+  const canvas=document.getElementById('bg-canvas');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,200);
+  camera.position.z=5;
+
+  function makeStars(count,spread,color,size,opacity){
+    const pos=new Float32Array(count*3);
+    for(let i=0;i<pos.length;i++)pos[i]=(Math.random()-.5)*spread;
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    return new THREE.Points(geo,new THREE.PointsMaterial({color,size,transparent:true,opacity}));
+  }
+  const s1=makeStars(800,60,0xe8ff47,.06,.9);   // bright yellow accent stars
+  const s2=makeStars(2500,80,0xffffff,.028,.55); // white mid stars
+  const s3=makeStars(5000,120,0xaaaacc,.012,.3); // tiny distant stars
+  const s4=makeStars(400,50,0xff3c6e,.05,.7);    // hot pink accent stars
+  const s5=makeStars(600,70,0x47d4ff,.022,.45);  // ice blue stars
+  scene.add(s1,s2,s3,s4,s5);
+
+  const torus=new THREE.Mesh(new THREE.TorusGeometry(2.5,.6,12,60),new THREE.MeshBasicMaterial({color:0x6c63ff,wireframe:true,transparent:true,opacity:.05}));
+  const ico=new THREE.Mesh(new THREE.IcosahedronGeometry(1.5,1),new THREE.MeshBasicMaterial({color:0xff3c6e,wireframe:true,transparent:true,opacity:.04}));
+  ico.position.set(3,1,-2);
+  const oct=new THREE.Mesh(new THREE.OctahedronGeometry(1.2,0),new THREE.MeshBasicMaterial({color:0x47d4ff,wireframe:true,transparent:true,opacity:.04}));
+  oct.position.set(-4,-2,-3);
+  scene.add(torus,ico,oct);
+
+  let mx=0,my=0,t=0;
+  document.addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-.5)*.4;my=(e.clientY/innerHeight-.5)*.4});
+  window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+  (function animate(){
+    requestAnimationFrame(animate);t+=.005;
+    s1.rotation.y=t*.04;s1.rotation.x=t*.02;
+    s2.rotation.y=-t*.025;s2.rotation.z=t*.01;
+    s3.rotation.x=t*.015;s3.rotation.y=t*.03;
+    s4.rotation.z=t*.05;s4.rotation.y=-t*.02;
+    s5.rotation.x=-t*.02;s5.rotation.z=t*.025;
+    s1.material.opacity=.7+Math.sin(t*2)*.2;
+    s4.material.opacity=.5+Math.sin(t*3+1)*.2;
+    s5.material.opacity=.35+Math.sin(t*2.5+2)*.1;
+    torus.rotation.x+=.002;torus.rotation.y+=.003;
+    ico.rotation.x-=.003;ico.rotation.z+=.002;
+    oct.rotation.y+=.004;oct.rotation.x-=.002;
+    camera.position.x+=(mx-camera.position.x)*.05;
+    camera.position.y+=(-my-camera.position.y)*.05;
+    renderer.render(scene,camera);
+  })();
+})();
+
+/* CURSOR */
+const cur=document.getElementById('cur'),ring=document.getElementById('cur-ring');
+let rx=0,ry=0,cx=0,cy=0;
+document.addEventListener('mousemove',e=>{cx=e.clientX;cy=e.clientY;cur.style.left=cx+'px';cur.style.top=cy+'px'});
+document.addEventListener('mousedown',()=>{cur.style.width='16px';cur.style.height='16px'});
+document.addEventListener('mouseup',()=>{cur.style.width='10px';cur.style.height='10px'});
+document.querySelectorAll('a,button').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.style.width='18px';cur.style.height='18px';ring.style.width='58px';ring.style.height='58px'});
+  el.addEventListener('mouseleave',()=>{cur.style.width='10px';cur.style.height='10px';ring.style.width='36px';ring.style.height='36px'});
+});
+(function animRing(){rx+=(cx-rx)*.1;ry+=(cy-ry)*.1;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animRing)})();
+
+/* GSAP */
+gsap.registerPlugin(ScrollTrigger);
+window.addEventListener('load',()=>{
+  gsap.timeline({defaults:{ease:'power4.out'}})
+    .to('.hero-eyebrow',{opacity:1,duration:.8,delay:.3})
+    .to('.hero-title .word',{y:'0%',duration:1,stagger:.12},'-=.4')
+    .to('.hero-sub',{opacity:1,duration:.8},'-=.3')
+    .to('.hero-cta',{opacity:1,duration:.6},'-=.3')
+    .to('.scroll-hint',{opacity:1,duration:.6},'-=.2');
+  document.querySelectorAll('.reveal').forEach(el=>{
+    ScrollTrigger.create({trigger:el,start:'top 88%',onEnter:()=>gsap.to(el,{opacity:1,y:0,duration:.7,ease:'power3.out'})});
+  });
+});
+
+/* STATE */
+let selectedSlides=8,selectedBullets=5,selectedSrc='wikipedia';
+function makeButtons(id,vals,sel,onPick){
+  const wrap=document.getElementById(id);wrap.innerHTML='';
+  vals.forEach(v=>{
+    const b=document.createElement('button');
+    b.className='slide-btn'+(v===sel?' active':'');
+    b.innerHTML='<span>'+v+'</span>';
+    b.onclick=()=>{wrap.querySelectorAll('.slide-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');onPick(v)};
+    wrap.appendChild(b);
+  });
+}
+makeButtons('slideBtns',[5,6,7,8,9,10,11,12],selectedSlides,v=>selectedSlides=v);
+makeButtons('bulletBtns',[3,4,5,6,7,8],selectedBullets,v=>selectedBullets=v);
+function setSrc(el){document.querySelectorAll('.src-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');selectedSrc=el.dataset.src}
+
+/* HINTS */
+const hints=['Try: Quantum Computing','Try: Breaking Bad','Try: CRISPR Gene Editing','Try: Inception','Try: Transformers (ML)','Try: The Office','Try: Black Holes','Try: Machine Learning'];
+let hintI=0;
+setInterval(()=>{const h=document.getElementById('topicHint');if(h&&!document.getElementById('topicInput').value){h.style.opacity='0';setTimeout(()=>{h.textContent=hints[hintI++%hints.length];h.style.opacity='1'},300)}},3000);
+
+/* STATUS */
+async function checkStatus(){
+  const chip=document.getElementById('statusChip'),txt=document.getElementById('statusText');
+  try{const r=await fetch(API+'/',{signal:AbortSignal.timeout(3000)});if(r.ok){chip.className='status-chip live';txt.textContent='API LIVE';return}}catch{}
+  chip.className='status-chip dead';txt.textContent='API OFFLINE';
+}
+checkStatus();setInterval(checkStatus,15000);
+
+/* LOADING */
+const MSGS=['Fetching Wikipedia docs…','Querying arXiv papers…','Chunking into 1000-char pieces…','Encoding 384-dim embeddings…','Storing in ChromaDB…','Running RAG retrieval…','Scoring & deduplicating…','Assembling your deck…'];
+let _mi=0,_mt=null,_pt=null;
+function startLoading(){
+  document.getElementById('progressWrap').classList.add('active');
+  document.getElementById('genBtn').disabled=true;
+  
+  
+  document.getElementById('progressMsg').textContent=MSGS[0];
+  document.getElementById('progressBar').style.width='5%';
+  _mi=0;_mt=setInterval(()=>{_mi=(_mi+1)%MSGS.length;document.getElementById('progressMsg').textContent=MSGS[_mi]},2500);
+  let p=5;_pt=setInterval(()=>{p=Math.min(p+Math.random()*4,90);document.getElementById('progressBar').style.width=p+'%'},800);
+}
+function stopLoading(ok){
+  clearInterval(_mt);clearInterval(_pt);
+  const bar=document.getElementById('progressBar');
+  bar.style.width=ok?'100%':'0%';
+  setTimeout(()=>{document.getElementById('progressWrap').classList.remove('active');bar.style.width='0%'},600);
+  document.getElementById('progressMsg').textContent='';
+  document.getElementById('genBtn').disabled=false;
+}
+function showErr(m){const b=document.getElementById('errBanner');b.textContent=m;b.classList.add('show')}
+function clearErr(){document.getElementById('errBanner').classList.remove('show')}
+
+/* RENDER */
+function renderSlides(data){
+  lastGeneratedData=data;
+  const grid=document.getElementById('slidesGrid');
+  grid.innerHTML='';
+  document.getElementById('outputTopic').innerHTML=data.topic.toUpperCase().split(' ').map((w,i)=>i===0?'<em>'+w+'</em>':w).join(' ');
+  const tp=document.getElementById('typePill');
+  tp.textContent=data.topic_type==='academic'?'📚 Academic':'🎬 Pop Culture';
+  tp.className='meta-pill '+(data.topic_type==='academic'?'type-academic':'type-pop');
+  document.getElementById('slidesPill').textContent=data.slides.length+' slides';
+  data.slides.forEach((slide,i)=>{
+    const card=document.createElement('div');
+    if(i===0){
+      card.className='slide-card title-card';
+      card.innerHTML='<div class="card-num">SLIDE 01 · TITLE</div><div class="card-title">'+slide.title+'</div><div class="card-sub">SlideForge · RAG Pipeline · '+new Date().toLocaleDateString()+'</div>';
+    } else {
+      card.className='slide-card';
+      const bullets=(slide.bullets||[]).slice(0,selectedBullets);
+      card.innerHTML='<div class="card-num">SLIDE '+String(i+1).padStart(2,'0')+'</div><div class="card-title">'+slide.title+'</div><ul class="card-bullets">'+(bullets.length?bullets.map(b=>'<li class="card-bullet"><span class="bullet-dot"></span><span>'+b+'</span></li>').join(''):'<li class="card-bullet"><span class="bullet-dot" style="background:var(--muted)"></span><span style="color:var(--muted);font-style:italic">No content retrieved.</span></li>')+'</ul>';
+    }
+    grid.appendChild(card);
+    gsap.to(card,{opacity:1,y:0,duration:.5,delay:i*.07,ease:'power3.out'});
+  });
+  const sec=document.getElementById('outputSection');
+  sec.classList.add('show');
+  
+  
+  
+  setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+/* GENERATE */
+async function generate(){
+  const topic=document.getElementById('topicInput').value.trim();
+  if(!topic){document.getElementById('topicInput').focus();return}
+  clearErr();
+  document.getElementById('outputSection').classList.remove('show');
+  startLoading();
+  try{
+    const res=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,num_slides:selectedSlides,max_bullets:selectedBullets,source:selectedSrc})});
+    if(!res.ok){const e=await res.json().catch(()=>({detail:res.statusText}));throw new Error(e.detail||'Error '+res.status)}
+    const data=await res.json();
+    stopLoading(true);renderSlides(data);
+  }catch(err){
+    stopLoading(false);
+    showErr(err.message.includes('fetch')||err.message.includes('Failed')?'⚠ Cannot reach backend. Run: python app.py  (expects localhost:8000)':'⚠ '+err.message);
+  }
+}
+document.getElementById('topicInput').addEventListener('keydown',e=>{if(e.key==='Enter')generate()});
+
+/* DOWNLOAD */
+async function downloadFile(fmt){
+  if(!lastGeneratedData)return;
+  const btn=document.getElementById(fmt==='pptx'?'dlPptx':'dlPdf');
+  const orig=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<span style="font-family:var(--font-m);font-size:.78rem;letter-spacing:.1em">GENERATING…</span>';
+  const payload={topic:lastGeneratedData.topic,topic_type:lastGeneratedData.topic_type,slides:lastGeneratedData.slides};
+  try{
+    const res=await fetch(API+'/export/'+fmt,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!res.ok){let msg='Export failed (HTTP '+res.status+')';try{const e=await res.json();msg=e.detail||JSON.stringify(e);}catch{}throw new Error(msg);}
+    const blob=await res.blob();
+    if(blob.size===0)throw new Error('Server returned empty file.');
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;
+    a.download=lastGeneratedData.topic.replace(/\s+/g,'_')+'_SlideForge.'+fmt;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(err){clearErr();showErr('⚠ Export failed: '+err.message);}
+  finally{btn.innerHTML=orig;btn.disabled=false;}
+}
+
+/* SCROLL REVEAL */
+document.querySelectorAll('.reveal').forEach(el=>{
+  new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')})},{threshold:.1}).observe(el);
+});
+</script>
+</body>
+</html>
