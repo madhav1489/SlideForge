@@ -5,18 +5,11 @@
 
 ---
 
-## 🌐 Live Demo
-
-🔗 **Website:** [Add your deployed link here]
-👉 Example: https://your-app-url.com
-
----
-
 ## 🎥 Demo Video
 
-📽️ Watch how it works:
-👉 
-(You can upload on YouTube / Loom and paste link)
+
+
+
 
 ---
 
@@ -72,11 +65,16 @@
 
 ## 📸 Screenshots
 
-> Add your UI images here (optional)
+<img width="1914" height="979" alt="Screenshot 2026-04-10 112723" src="https://github.com/user-attachments/assets/72767d3e-90e3-4c03-a66f-e2adec0970e7" />
+<img width="1901" height="973" alt="Screenshot 2026-04-10 112741" src="https://github.com/user-attachments/assets/81a6a6d1-a28d-47b2-bb15-dcc3eda054d0" />
+<img width="1900" height="979" alt="Screenshot 2026-04-10 112753" src="https://github.com/user-attachments/assets/df7ee938-cdd1-48a8-89e8-a8ba47901b95" />
+<img width="1904" height="984" alt="Screenshot 2026-04-10 112808" src="https://github.com/user-attachments/assets/7db75a9d-a255-4789-9019-c52a552c4151" />
+<img width="1912" height="979" alt="Screenshot 2026-04-10 112819" src="https://github.com/user-attachments/assets/06cc7570-3a77-4515-8579-a642c63c078b" />
+<img width="1856" height="938" alt="Screenshot 2026-04-10 112834" src="https://github.com/user-attachments/assets/2b2e4bbb-4dce-49d2-afc1-76d7f6583a29" />
+<img width="1904" height="980" alt="Screenshot 2026-04-10 112849" src="https://github.com/user-attachments/assets/20fdacb9-ddf9-4413-8ac9-fef9e6325590" />
+<img width="1907" height="975" alt="Screenshot 2026-04-10 112904" src="https://github.com/user-attachments/assets/7ec1a987-7f4f-4c31-9bbc-3a96375c7072" />
 
-```
-![Homepage](./screenshots/home.png)
-![Slides](./screenshots/slides.png)
+
 ```
 
 ---
